@@ -5,6 +5,7 @@ dotenv
 langchain
 langchain_google_genai
 langchain_core
-langchain_community
 mysql-connector-python
 sqlalchemy
+pydantic
+fastapi

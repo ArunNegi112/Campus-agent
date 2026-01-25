@@ -1,8 +1,7 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate 
 from dotenv import load_dotenv
-from frontend import user_query
-from query_model import get_query
+from ai_models.query_model import get_query
 
 load_dotenv()
 
