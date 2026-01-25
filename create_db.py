@@ -6,7 +6,7 @@ import os
 from parse_tt import Parse_TT
 
 #Parsing pdf to get timetable csv file for each batch
-Parse_TT(r"C:\Users\Arun\Documents\Documents\Campus chatbot\TT_Batchwise_Even SEM-2025-26.pdf")
+Parse_TT(r"TT_Batchwise_Even SEM-2025-26.pdf")
 
 
 #load env
@@ -37,7 +37,7 @@ db = create_engine(
 
 
 for file in os.listdir(csv_dir):
-    file_name = str(file).split(".")[0]
+    file_name = "tt"
     csv_path = os.path.join(csv_dir, file)
 
     df = pd.read_csv(csv_path)
@@ -49,6 +49,3 @@ for file in os.listdir(csv_dir):
         index=True
     )
     print(f"Inserted {file_name}")
-
-
-
