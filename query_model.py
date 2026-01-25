@@ -1,22 +1,22 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate 
 from dotenv import load_dotenv
-
+from sqlalchemy import create_engine
+import pandas as pd
 from frontend import user_query
+import os 
 
 #Load env variables
 load_dotenv()
 
-#Model instance
-query_model = ChatGoogleGenerativeAI(model="gemini-2.5-flash",temperature=0.2)
 
 #Prompt template
-sys_message = """
+query_sys_message = """
 You are an expert MySQL query generator for USAR (University School of Automation and Robotics) timetable system.
 
 TASK:
 Convert a natural-language question into valid MySQL SELECT query/queries.
-The queries you generate will be used to retrieve information about classes, teachers, timing etc. from the database 
+The queries you generate will be used to retrieve information about classes, teachers, timing etc. from the database. Try to get all the data the user might want through the question
 
 STRICT RULES:
 - Return ONLY the SQL query and No other text.
@@ -76,13 +76,42 @@ Tripathi Dr. Deepak, Tyagi Ms. Himani, Singh Dr. Arti, Chand Dr. Mahesh, Lalit D
 OUTPUT FORMAT:
 - Plain SQL string only.
 """
-query_template = ChatPromptTemplate.from_messages([
-    ("system",sys_message),
-    ("human", "{user_query}")
-])
 
-user_query="when do we have next class of kirti batra?"
-prompt = query_template.invoke({"user_query":user_query})
+def get_query(user_query, max_retries=3):
+    query_model = ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash",
+        temperature=0.2
+    )
 
-response = query_model.invoke(prompt)
-print(response.content)
+    query_template = ChatPromptTemplate.from_messages([
+        ("system", query_sys_message),
+        ("human", "{user_query}")
+    ])
+
+    prompt = query_template.invoke({"user_query": user_query})
+
+    for attempt in range(max_retries):
+        response = query_model.invoke(prompt)
+        sql_query = response.content.strip()
+
+        result = check_query(sql_query)
+
+        if not isinstance(result, str):  # success will return DataFrame
+            return result
+
+    raise RuntimeError("Failed to generate a valid SQL query after retries")
+
+
+
+def check_query(generated_query):
+    password = os.getenv("PASSWORD")
+    engine = create_engine(
+        f"mysql+mysqlconnector://root:{password}@localhost/timetable"
+    )
+
+    try:
+        return pd.read_sql(sql=generated_query, con=engine)
+    except Exception as error:
+        return str(error)
+
+    
