@@ -4,10 +4,14 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 import pandas as pd
 import os 
+from datetime import datetime,date
 
 #Load env variables
 load_dotenv()
 
+
+current_date = date.today().strftime("%A, %d-%m-%Y")
+current_time = datetime.now().strftime("%H:%M")
 
 #Prompt template
 query_sys_message = """
@@ -16,6 +20,9 @@ You are an expert MySQL query generator for USAR (University School of Automatio
 TASK:
 Convert a natural-language question into valid MySQL SELECT query/queries.
 The queries you generate will be used to retrieve information about classes, teachers, timing etc. from the database. Try to get all the data the user might want through the question
+
+Todays day and date(day-month-year): {current_date}
+Current time: {current_time}
 
 STRICT RULES:
 - Return ONLY the SQL query and No other text.
@@ -41,6 +48,9 @@ TABLE STRUCTURE (tt):
 - 15_00 TEXT
 - 16_00 TEXT
 - batch TEXT
+
+For timings of class check the column names,
+For days check the 'days' column or index`
 
 Batch names are written as "<branch>_<semester>_<batch>" in 'batch' column: 
 AIML_II_B1
@@ -76,6 +86,7 @@ OUTPUT FORMAT:
 - Plain SQL string only.
 """
 
+
 def get_query(user_query, max_retries=3):
     query_model = ChatGoogleGenerativeAI(
         model="gemini-2.5-flash",
@@ -87,22 +98,40 @@ def get_query(user_query, max_retries=3):
         ("human", "{user_query}")
     ])
 
-    prompt = query_template.invoke({"user_query": user_query})
-
+    error_msg = ""
     for attempt in range(max_retries):
+        # Include error from previous attempt
+        current_query = user_query
+        if error_msg:
+            current_query = f"{user_query}\n\nPrevious query failed with error: {error_msg}\nPlease generate a corrected query."
+        
+        prompt = query_template.invoke(
+            {"current_date":current_date,"current_time":current_time,"user_query": current_query})
         response = query_model.invoke(prompt)
         sql_query = response.content.strip()
+        
+        # Remove markdown code blocks if present
+        sql_query = sql_query.replace("```sql", "").replace("```", "").strip()
 
         result = check_query(sql_query)
 
-        if not isinstance(result, str):  # success will return DataFrame
+        if not isinstance(result, str):  # success
             return result
+        else:
+            error_msg = result
 
-    raise RuntimeError("Failed to generate a valid SQL query after retries")
-
+    raise RuntimeError(f"Failed to generate valid SQL query after {max_retries} retries. Last error: {error_msg}")
 
 
 def check_query(generated_query):
+    # Basic SQL injection protection
+    dangerous_keywords = ['DROP', 'DELETE', 'INSERT', 'UPDATE', 'ALTER', 'CREATE', 'TRUNCATE']
+    query_upper = generated_query.upper()
+    
+    for keyword in dangerous_keywords:
+        if keyword in query_upper:
+            raise ValueError(f"Dangerous SQL keyword detected: {keyword}")
+    
     password = os.getenv("PASSWORD")
     engine = create_engine(
         f"mysql+mysqlconnector://root:{password}@localhost/timetable"
@@ -112,5 +141,3 @@ def check_query(generated_query):
         return pd.read_sql(sql=generated_query, con=engine)
     except Exception as error:
         return str(error)
-
-    
