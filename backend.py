@@ -16,7 +16,7 @@ class UserInput(BaseModel):
 
 
 #create endpoint
-@app.post("/query")
+@app.post("/")
 def generate_output(user_input: UserInput):
     try:
         response = final_response(user_input.user_query)
@@ -24,4 +24,4 @@ def generate_output(user_input: UserInput):
     except ResourceExhausted as error:
         raise HTTPException(status_code=429,detail="RESOURCES EXHAUSTED, You have reached the token limit")
     except Exception as error:
-        raise HTTPException(status_code=500, content={"error": str(error)})
+        raise HTTPException(status_code=500, detail={"error": str(error)})
