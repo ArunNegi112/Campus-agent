@@ -1,4 +1,3 @@
-import mysql.connector
 from sqlalchemy import create_engine
 from dotenv import load_dotenv
 import pandas as pd
@@ -11,28 +10,16 @@ Parse_TT(r"TT_Batchwise_Even SEM-2025-26.pdf")
 
 #load env
 load_dotenv()
-db_password = os.getenv("PASSWORD")
-#build connection
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST")
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
 csv_dir = "TT_data"
 
 
-#Create database
-conn = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password=db_password
-)
-
-cur = conn.cursor()
-cur.execute(operation="CREATE DATABASE IF NOT EXISTS timetable")
-conn.commit()
-cur.close()
-conn.close()
-
-
-# so i used connector only to create database and then will use engine to actually do the CRUD operations
+# use engine to do the CRUD operations
 db = create_engine(
-    url=f"mysql+mysqlconnector://root:{db_password}@localhost/timetable"
+    url=f"mysql+mysqlconnector://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
 )
 
 
