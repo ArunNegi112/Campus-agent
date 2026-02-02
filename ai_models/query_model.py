@@ -10,12 +10,13 @@ from datetime import datetime,date
 load_dotenv()
 
 
+
 current_date = date.today().strftime("%A, %d-%m-%Y")
 current_time = datetime.now().strftime("%H:%M")
 
 #Prompt template
 query_sys_message = """
-You are an expert MySQL query generator for USAR (University School of Automation and Robotics) timetable system.
+You are an expert MySQL query generator for a timetable system.
 
 TASK:
 Convert a natural-language question into valid MySQL SELECT query/queries.
@@ -25,9 +26,6 @@ Todays day and date(day-month-year): {current_date}
 Current time: {current_time}
 
 STRICT RULES:
-- Return ONLY the SQL query and No other text.
-- Do NOT explain anything.
-- Do NOT use markdown or comments.
 - Do NOT use INSERT, UPDATE, DELETE, DROP, or ALTER.
 - Use ONLY SELECT queries.
 - Query must be syntactically correct MySQL.
@@ -50,7 +48,7 @@ TABLE STRUCTURE (tt):
 - batch TEXT
 
 For timings of class check the column names,
-For days check the 'days' column or index`
+For days,batch check the 'days','batch' column.
 
 Batch names are written as "<branch>_<semester>_<batch>" in 'batch' column: 
 AIML_II_B1
@@ -79,12 +77,42 @@ IIOT_VI_B1
 IIOT_VI_B2
 PhD
 
+Each non-empty cell in a timetable represents a single class session.
+
+Cell format:
+"<Faculty Name> <Program_Sem_Batch_Group> <Subject Code> <Room> <Class Type>"
+
+Field meanings:
+- Faculty Name: Instructor taking the class
+- Program_Sem_Batch_Group: Program, semester, batch, and group
+- Subject Code: Official subject code
+- Room: Classroom or lab identifier
+- Class Type: Lecture / Lab / Tutorial
+
+Example cell value:
+"Aggarwal Dr. Ritu AIML-II_B2_B AR-156 AUB-01 Phy Lab"
+
 Note: Users may have typo in names of teachers, hence match them with these names-
 Tripathi Dr. Deepak, Tyagi Ms. Himani, Singh Dr. Arti, Chand Dr. Mahesh, Lalit Dr. Ruchika, Hooda Dr. Chetana, Joshi Dr. Bhanu Prakash, Bhatia Dr. Anshul, Kumar Mr. Anuj, Singh Dr. Abhishek, Pal Ms. Geetanshi, Tripathi Dr. Atul, Wadhwa Ms. Venika, Kaur Prof. Arvinder, Dr. Annu Priya, Kharwal Ms. Riya, Johari Dr. Rahul, Khurshid Bijli Ms. Mahvish, Kalonia Ms. Ritu, Joshi Dr. Ashish, Mishra Dr. Pawan Kumar, Singh Mr. Neeraj, Jangid Dr. Manisha, Surendra Ms. Surbhi, Chaudhary Ms. Sheetal, AR Guest 1, Aggarwal Dr. Ritu, Chowdhury Dr. Sushobhan, Dr. Jyoti, Shankar Dr. Shashi, Parlewar Dr. Manisha, Kumar Dr. Manoj, Dua Ms. Disha, Choudhary Dr. Amit, Singh Dr. Amrit Pal, Dr. Ashok, Sehgal Dr. Ruchika, Lakhanpal Mr. Anupam, AR Guest 2, Arora Dr. Amar, Nimanpure Dr. Subhas, Rana Dr. Pooja, Singh Dr. Sakshi, Baghel Dr. Pushp Kumar, Anand Dr. Sourabh, Butola Dr. Ravi, Arya Dr. Rajendra, Chaudhary Dr. Sumit, Bhargava Mr. Ankur, Kumar Dr. Ghanendra, Jindal Ms. Kanika, Muthaiah Dr. V. M. Rajavel, Singh Dr. Amanpreet, Singholi Prof. Ajay, Dandapat Dr. Anirban, Mr. Shakin, Singh Dr. Neeta, Singh Dr. Sanjay Kumar, Chopra Dr. Khyati, Aggarwal Prof. Abha, Dalal Dr. Renu, Singh Dr Rohit, Batra Prof. Kriti
+
+Below is the dictionary of subject code and subject name as key-value
 
 OUTPUT FORMAT:
 - Plain SQL string only.
 """
+
+json_SQL_output = {
+    "title": "SQL Query",
+    "type": "object",
+    "properties": {
+        "query": {
+            "type": "string",
+            "description": "Valid SQL query"
+        }
+    },
+    "required": ['query']
+}
+
 
 
 def get_query(user_query, max_retries=3):
@@ -92,6 +120,7 @@ def get_query(user_query, max_retries=3):
         model="gemini-2.5-flash",
         temperature=0.2
     )
+    structured_model = query_model.with_structured_output(json_SQL_output)
 
     query_template = ChatPromptTemplate.from_messages([
         ("system", query_sys_message),
@@ -107,16 +136,15 @@ def get_query(user_query, max_retries=3):
         
         prompt = query_template.invoke(
             {"current_date":current_date,"current_time":current_time,"user_query": current_query})
-        response = query_model.invoke(prompt)
-        sql_query = response.content.strip()
         
-        # Remove markdown code blocks if present
-        sql_query = sql_query.replace("```sql", "").replace("```", "").strip()
+        response = structured_model.invoke(prompt)
+        sql_query = response['query']
+        sql_query = str(sql_query).strip()
+
 
         result = check_query(sql_query)
-
         if not isinstance(result, str):  # success
-            return result
+            return current_query, sql_query, result
         else:
             error_msg = result
 
@@ -126,16 +154,22 @@ def get_query(user_query, max_retries=3):
 def check_query(generated_query):
     # Basic SQL injection protection
     dangerous_keywords = ['DROP', 'DELETE', 'INSERT', 'UPDATE', 'ALTER', 'CREATE', 'TRUNCATE']
-    query_upper = generated_query.upper()
-    
+
     for keyword in dangerous_keywords:
-        if keyword in query_upper:
+        if keyword in generated_query:
             raise ValueError(f"Dangerous SQL keyword detected: {keyword}")
     
-    password = os.getenv("PASSWORD")
+    DB_PASSWORD = os.getenv("DB_PASSWORD")
+    DB_HOST = os.getenv("DB_HOST")
+    DB_NAME = os.getenv("DB_NAME")
+    DB_USER = os.getenv("DB_USER")
+
+
+    # use engine to do the CRUD operations
     engine = create_engine(
-        f"mysql+mysqlconnector://root:{password}@localhost/timetable"
+        url=f"mysql+mysqlconnector://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
     )
+
 
     try:
         return pd.read_sql(sql=generated_query, con=engine)
