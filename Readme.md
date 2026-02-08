@@ -199,7 +199,7 @@ campus-chatbot/
 - Add subject code to subject name mapping
 - Support queries using subject names
 - User authentication
-- Email/SMS notifications for upcoming classes
+- Email/SMS notifications if incase any class is cancelled or rescheduled
 - Using better LLMs for Query and Response models
 
 
