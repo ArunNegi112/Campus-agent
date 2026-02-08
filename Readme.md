@@ -80,13 +80,20 @@ graph TB
 git clone https://github.com/ArunNegi112/Campus-agent.git
 cd Campus-agent
 ```
+2. **Create venv**
+```bash
+python -m venv env
 
-2. **Install dependencies**
+#activate env
+env/Scripts/activate
+``` 
+
+3. **Install dependencies**
 ```bash
 pip install -r requirements.txt
 ```
 
-3. **Configure environment variables**
+4. **Configure environment variables**
 
 Create a `.env` file in the project root:
 ```env
