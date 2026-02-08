@@ -37,5 +37,8 @@ if st.button("Submit"):
             else:
                 st.error(f"Error {response.status_code}: {response.text}")
 
+        except Exception as error:
+            st.error("Uh-Oh, somethings wrong")
+            
         except requests.exceptions.ConnectionError:
             st.error("Could not connect to backend. Is FastAPI running?")

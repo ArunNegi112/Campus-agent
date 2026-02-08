@@ -20,6 +20,10 @@ def generate_output(user_input: UserInput):
     try:
         response = final_response(user_input.user_query)
         return JSONResponse(status_code=200, content={"response": response})
+    
+    except HTTPException:
+        raise
+
     except Exception as error:
         error_msg = str(error)
         error_type = type(error).__name__
@@ -32,5 +36,11 @@ def generate_output(user_input: UserInput):
         if 'RESOURCE_EXHAUSTED' in error_msg:
             raise HTTPException(
                 status_code=429,
-                detail="API quota exceeded. Please try again later or upgrade your Google API plan."
+                detail="API quota exceeded. Upgrade your API plan."
+            )
+        
+        if error_type=="DefaultCredentialsError":
+            raise HTTPException(
+                status_code=429,
+                detail="API quota exceeded, 'DefaultCredentialsError'"
             )
