@@ -5,7 +5,7 @@ import pandas as pd
 
 
 def Parse_TT(pdf_path):
-    os.makedirs('TT_data', exist_ok=True)
+    os.makedirs('database/TT_data', exist_ok=True)
     list_dfs = camelot.read_pdf(pdf_path, flavor='lattice', pages='all')
 
     dfs = []
@@ -46,4 +46,4 @@ def Parse_TT(pdf_path):
     
     result = pd.concat(dfs,axis=0)
     
-    result.to_csv("TT_data/tt.csv",index=True)
+    result.to_csv("database/TT_data/tt.csv",index=True)
