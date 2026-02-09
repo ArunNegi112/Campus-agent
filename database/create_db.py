@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from dotenv import load_dotenv
 import pandas as pd
 import os
-from database.parse_db import Parse_TT
+from parse_db import Parse_TT
 
 #Parsing pdf to get timetable csv file for each batch
 Parse_TT(r"TT_Batchwise_Even SEM-2025-26.pdf")
