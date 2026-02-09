@@ -1,6 +1,10 @@
-# Campus Chatbot 🎓
+# Campus Agent 🎓
 
 A natural language interface for querying college timetables. Ask questions in plain English and get instant answers about class schedules, teachers, rooms, and timings.
+
+## Hear me out
+I have yet to learn about deployment, and for now I am not using agents like Replit to deploy this.   
+At the moment, you will need to run this on your own machine by cloning the repository. The instructions are given below.
 
 ## Overview
 
